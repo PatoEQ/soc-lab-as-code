@@ -9,6 +9,11 @@ def test_health():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    
+def test_health_includes_service_and_timestamp():
+    body = client.get("/health").json()
+    assert body["service"] == "ioc-enricher"
+    assert body["timestamp"].endswith("+00:00")
 
 
 def test_public_ipv4():

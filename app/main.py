@@ -4,7 +4,7 @@ Classifies an indicator of compromise (IOC): IP address, domain or file hash.
 Later phases add enrichment from threat intelligence sources
 (AbuseIPDB, VirusTotal, AlienVault OTX).
 """
-
+from datetime import datetime, timezone
 import ipaddress
 import re
 
@@ -74,7 +74,12 @@ def classify_ioc(raw: str) -> IOCResponse:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "version": app.version}
+    return {
+        "status": "ok",
+        "service": "ioc-enricher",
+        "version": app.version,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.post("/ioc/classify", response_model=IOCResponse)
