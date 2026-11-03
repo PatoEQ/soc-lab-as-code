@@ -1,0 +1,40 @@
+# Secrets and environment variables — NEVER commit these
+.env
+*.env
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+.vault_pass*
+
+# Kubernetes
+kubeconfig*
+*.kubeconfig
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
