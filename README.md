@@ -49,7 +49,14 @@ curl -X POST http://127.0.0.1:8000/ioc/classify \
 ```bash
 pytest -v
 ```
+## Development setup
 
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+All commits must be signed and pass the pre-commit hooks (gitleaks, private key detection, formatting).
 ## Repository layout
 
 ```text

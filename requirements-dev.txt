@@ -1,0 +1,2 @@
+-r app/requirements.txt
+pre-commit==4.0.1
