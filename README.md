@@ -2,7 +2,7 @@
 
 A complete SOC lab deployed 100% as code: build it, harden it, attack it, and detect the attack.
 
-> Status: **Phase 1 — Git** (v0.1.0 in progress)
+> Status: **Phase 1 — Git** (Day 6: practicing conflicts and rebase)
 
 ## What it is
 
