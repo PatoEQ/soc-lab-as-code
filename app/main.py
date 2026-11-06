@@ -1,15 +1,18 @@
 """IOC Enricher API — v0.1
 
-Classifies an indicator of compromise (IOC): IP address, domain or file hash.
-Later phases add enrichment from threat intelligence sources
-(AbuseIPDB, VirusTotal, AlienVault OTX).
+Classifies an indicator of compromise (IOC) and enriches public IP addresses
+with AbuseIPDB reputation data. VirusTotal and AlienVault OTX come next.
 """
-from datetime import datetime, timezone
 import ipaddress
+import os
 import re
+from datetime import datetime, timezone
 
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+from app.intel import abuseipdb
 
 app = FastAPI(
     title="IOC Enricher",
@@ -33,6 +36,10 @@ class IOCResponse(BaseModel):
     type: str
     detail: dict
 
+class EnrichResponse(BaseModel):
+    ioc: IOCResponse
+    enrichment: dict | None
+    note: str | None = None
 
 def classify_ioc(raw: str) -> IOCResponse:
     """Detect the IOC type without calling any external service."""
@@ -85,3 +92,30 @@ def health() -> dict:
 @app.post("/ioc/classify", response_model=IOCResponse)
 def classify(request: IOCRequest) -> IOCResponse:
     return classify_ioc(request.value)
+
+@app.post("/ioc/enrich", response_model=EnrichResponse)
+def enrich(request: IOCRequest) -> EnrichResponse:
+    ioc = classify_ioc(request.value)
+
+    if ioc.type not in ("ipv4", "ipv6"):
+        return EnrichResponse(
+            ioc=ioc,
+            enrichment=None,
+            note=f"enrichment for type '{ioc.type}' is not supported yet",
+        )
+
+    # Internal addresses are never sent to a third party.
+    if ioc.detail["private"] or ioc.detail["loopback"]:
+        return EnrichResponse(ioc=ioc, enrichment=None, note="internal address, not looked up")
+
+    api_key = os.getenv("ABUSEIPDB_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="ABUSEIPDB_API_KEY is not configured")
+
+    try:
+        with httpx.Client(timeout=10) as client:
+            result = abuseipdb.check_ip(ioc.value, api_key, client)
+    except abuseipdb.AbuseIPDBError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return EnrichResponse(ioc=ioc, enrichment=result)

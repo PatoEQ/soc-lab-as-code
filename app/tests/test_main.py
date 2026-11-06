@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app, classify_ioc
+from app.intel import abuseipdb
 
 client = TestClient(app)
 
@@ -59,3 +60,27 @@ def test_classify_endpoint():
 def test_classify_endpoint_rejects_empty_value():
     response = client.post("/ioc/classify", json={"value": ""})
     assert response.status_code == 422
+
+def test_enrich_skips_private_ip():
+    body = client.post("/ioc/enrich", json={"value": "10.0.0.5"}).json()
+    assert body["enrichment"] is None
+    assert "internal" in body["note"]
+
+
+def test_enrich_unsupported_type():
+    body = client.post("/ioc/enrich", json={"value": "example.com"}).json()
+    assert "not supported" in body["note"]
+
+
+def test_enrich_without_api_key(monkeypatch):
+    monkeypatch.delenv("ABUSEIPDB_API_KEY", raising=False)
+    response = client.post("/ioc/enrich", json={"value": "185.220.101.1"})
+    assert response.status_code == 503
+
+
+def test_enrich_public_ip(monkeypatch):
+    monkeypatch.setenv("ABUSEIPDB_API_KEY", "test-key")
+    fake = {"source": "abuseipdb", "verdict": "malicious", "abuse_confidence_score": 100}
+    monkeypatch.setattr(abuseipdb, "check_ip", lambda ip, key, client: fake)
+    body = client.post("/ioc/enrich", json={"value": "185.220.101.1"}).json()
+    assert body["enrichment"]["verdict"] == "malicious"
