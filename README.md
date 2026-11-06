@@ -2,7 +2,7 @@
 
 A complete SOC lab deployed 100% as code: build it, harden it, attack it, and detect the attack.
 
-> Status: **Phase 1 — Git** (Day 6 — AbuseIPDB enrichment available)
+> Status: **Phase 1 complete** (v0.1.0) — next: Phase 2, Docker
 ## What it is
 
 An IOC enrichment API (IP, domain, hash) at the center of a lab built with:
@@ -18,7 +18,7 @@ An IOC enrichment API (IP, domain, hash) at the center of a lab built with:
 
 | Phase | Tool | Status |
 | --- | --- | --- |
-| 1 | Git and GitHub | In progress |
+| 1 | Git and GitHub | Done ([docs](docs/phase-1-git.md)) |
 | 2 | Docker | Planned |
 | 3 | CI/CD | Planned |
 | 4 | Ansible | Planned |
