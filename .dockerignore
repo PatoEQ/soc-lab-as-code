@@ -1,0 +1,32 @@
+# Secrets — must never reach the build context
+.env
+*.env
+*.pem
+*.key
+
+# Version control and local tooling
+.git
+.github
+.venv
+venv
+.vscode
+.idea
+.pre-commit-config.yaml
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tests are not shipped in the production image
+app/tests/
+
+# Other phases and documentation
+docs/
+ansible/
+terraform/
+k8s/
+detections/
+*.md
