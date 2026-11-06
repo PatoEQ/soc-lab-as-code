@@ -42,7 +42,15 @@ curl -X POST http://127.0.0.1:8000/ioc/classify \
   -H "Content-Type: application/json" \
   -d '{"value": "8[.]8[.]8[.]8"}'
 ```
+## Run with Docker
 
+```bash
+docker build -f docker/Dockerfile -t ioc-enricher:dev .
+docker run -d --name ioc -p 127.0.0.1:8000:8000 --env-file .env ioc-enricher:dev
+curl http://127.0.0.1:8000/health
+```
+
+The image contains only the API code and its runtime dependencies. Secrets are passed at runtime with `--env-file` and are excluded from the build context by `.dockerignore`.
 ## Tests
 
 ```bash
