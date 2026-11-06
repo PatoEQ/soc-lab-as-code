@@ -50,7 +50,13 @@ docker run -d --name ioc -p 127.0.0.1:8000:8000 --env-file .env ioc-enricher:dev
 curl http://127.0.0.1:8000/health
 ```
 
-The image contains only the API code and its runtime dependencies. Secrets are passed at runtime with `--env-file` and are excluded from the build context by `.dockerignore`.
+The image is built in two stages and hardened:
+
+- Runs as an unprivileged user (UID 10001), never as root
+- Application code is owned by root and read-only for the app user
+- pip is removed from the final image
+- Built-in healthcheck against `/health` (`docker ps` shows `healthy`)
+- Secrets are passed at runtime with `--env-file` and excluded from the build context by `.dockerignore`
 ## Tests
 
 ```bash
