@@ -2,8 +2,7 @@
 
 A complete SOC lab deployed 100% as code: build it, harden it, attack it, and detect the attack.
 
-> Status: **Phase 1 — Git** (Day 6: practicing conflicts and rebase)
-
+> Status: **Phase 1 — Git** (Day 6 — AbuseIPDB enrichment available)
 ## What it is
 
 An IOC enrichment API (IP, domain, hash) at the center of a lab built with:
@@ -49,6 +48,18 @@ curl -X POST http://127.0.0.1:8000/ioc/classify \
 ```bash
 pytest -v
 ```
+## Enrich an IP with AbuseIPDB
+
+Requires `ABUSEIPDB_API_KEY` in your `.env` file (see `.env.example`).
+
+```bash
+uvicorn app.main:app --reload --env-file .env
+curl -X POST http://127.0.0.1:8000/ioc/enrich \
+  -H "Content-Type: application/json" \
+  -d '{"value": "8.8.8.8"}'
+```
+
+Private and loopback addresses are never sent to AbuseIPDB.
 ## Development setup
 
 ```bash
