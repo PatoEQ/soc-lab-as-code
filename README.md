@@ -57,6 +57,23 @@ The image is built in two stages and hardened:
 - pip is removed from the final image
 - Built-in healthcheck against `/health` (`docker ps` shows `healthy`)
 - Secrets are passed at runtime with `--env-file` and excluded from the build context by `.dockerignore`
+## Run the full stack with Docker Compose
+
+Add the PostgreSQL variables to your `.env` (see `.env.example`), then:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+- API: http://127.0.0.1:8000/docs
+- Lookup history: `GET /ioc/history`
+
+Network design:
+
+- `frontend`: the API, its published port (127.0.0.1 only) and internet access for threat intelligence lookups
+- `backend` (internal): API ↔ PostgreSQL only; no internet access, database port not published
+- Data persists in the `pgdata` volume across `docker compose down` / `up`
 ## Tests
 
 ```bash

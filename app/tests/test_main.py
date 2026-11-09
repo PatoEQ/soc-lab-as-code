@@ -1,7 +1,9 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
-from app.main import app, classify_ioc
+from app import db
 from app.intel import abuseipdb
+from app.main import app, classify_ioc
 
 client = TestClient(app)
 
@@ -84,3 +86,33 @@ def test_enrich_public_ip(monkeypatch):
     monkeypatch.setattr(abuseipdb, "check_ip", lambda ip, key, client: fake)
     body = client.post("/ioc/enrich", json={"value": "185.220.101.1"}).json()
     assert body["enrichment"]["verdict"] == "malicious"
+
+def test_enrich_is_recorded_in_history(monkeypatch):
+    monkeypatch.setenv("ABUSEIPDB_API_KEY", "test-key")
+    fake = {"source": "abuseipdb", "verdict": "suspicious", "abuse_confidence_score": 40}
+    monkeypatch.setattr(abuseipdb, "check_ip", lambda ip, key, client: fake)
+    client.post("/ioc/enrich", json={"value": "45.155.205.233"})
+    history = client.get("/ioc/history", params={"value": "45.155.205.233"}).json()
+    assert history[0]["verdict"] == "suspicious"
+    assert history[0]["score"] == 40
+    assert history[0]["source"] == "abuseipdb"
+
+
+def test_history_normalizes_defanged_value():
+    client.post("/ioc/enrich", json={"value": "Phish.Example.COM"})
+    history = client.get("/ioc/history", params={"value": "phish[.]example[.]com"}).json()
+    assert history[0]["ioc_type"] == "domain"
+    assert history[0]["verdict"] is None
+
+
+def test_history_limit_is_bounded():
+    assert client.get("/ioc/history", params={"limit": 1000}).status_code == 422
+
+
+def test_enrich_survives_database_outage(monkeypatch):
+    def broken_database(**kwargs):
+        raise OperationalError("INSERT", {}, Exception("database is down"))
+
+    monkeypatch.setattr(db, "record_lookup", broken_database)
+    response = client.post("/ioc/enrich", json={"value": "10.0.0.5"})
+    assert response.status_code == 200
