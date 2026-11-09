@@ -1,5 +1,5 @@
 # SOC Lab as Code
-
+[![CI](https://github.com/PatoEQ/soc-lab-as-code/actions/workflows/ci.yml/badge.svg)](https://github.com/PatoEQ/soc-lab-as-code/actions/workflows/ci.yml)
 A complete SOC lab deployed 100% as code: build it, harden it, attack it, and detect the attack.
 
 > Status: **Phase 2 complete** (v0.2.0) — next: Phase 3, CI/CD
