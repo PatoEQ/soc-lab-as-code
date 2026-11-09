@@ -2,7 +2,7 @@
 
 A complete SOC lab deployed 100% as code: build it, harden it, attack it, and detect the attack.
 
-> Status: **Phase 1 complete** (v0.1.0) — next: Phase 2, Docker
+> Status: **Phase 2 complete** (v0.2.0) — next: Phase 3, CI/CD
 ## What it is
 
 An IOC enrichment API (IP, domain, hash) at the center of a lab built with:
@@ -19,8 +19,8 @@ An IOC enrichment API (IP, domain, hash) at the center of a lab built with:
 | Phase | Tool | Status |
 | --- | --- | --- |
 | 1 | Git and GitHub | Done ([docs](docs/phase-1-git.md)) |
-| 2 | Docker | Planned |
-| 3 | CI/CD | Planned |
+| 2 | Docker | Done ([docs](docs/phase-2-docker.md)) |
+| 3 | CI/CD | In progress |
 | 4 | Ansible | Planned |
 | 5 | Terraform | Planned |
 | 6 | Kubernetes | Planned |
@@ -74,6 +74,13 @@ Network design:
 - `frontend`: the API, its published port (127.0.0.1 only) and internet access for threat intelligence lookups
 - `backend` (internal): API ↔ PostgreSQL only; no internet access, database port not published
 - Data persists in the `pgdata` volume across `docker compose down` / `up`
+
+Runtime hardening (both services):
+
+- Read-only root filesystem; `/tmp` is a small in-memory tmpfs mounted `noexec,nosuid`
+- All Linux capabilities dropped (PostgreSQL gets back only the 5 it needs to start)
+- `no-new-privileges` blocks privilege escalation through setuid binaries
+- Memory, CPU and process limits contain runaway or compromised containers
 ## Vulnerability scanning
 
 The image is scanned with [Trivy](https://trivy.dev):
