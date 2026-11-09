@@ -1,7 +1,7 @@
 # Phase 1 — Git and GitHub
 
 **Period:** 2026-10-28 to 2026-11-06
-**Release:** [v0.1.0](../../releases/tag/v0.1.0)
+**Release:** [v0.1.0](https://github.com/PatoEQ/soc-lab-as-code/releases/tag/v0.1.0)
 
 ## Goal
 
