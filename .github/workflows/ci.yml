@@ -91,3 +91,53 @@ jobs:
           --config p/owasp-top-ten
           --error
           --metrics=off
+
+  container:
+    name: Container scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write   # upload scan results to the Security tab
+      actions: read            # upload-sarif reads the current workflow run metadata
+    env:
+      TRIVY_VERSION: "0.76.1"
+      # From the official trivy_0.76.1_checksums.txt release file
+      TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+      IMAGE: ioc-enricher:ci
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy (checksum verified)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/trivy.tar.gz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP" trivy
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Build the image
+        run: docker build --pull -f docker/Dockerfile -t "$IMAGE" .
+
+      - name: Scan the image (report for the Security tab)
+        run: >-
+          trivy image --scanners vuln --severity HIGH,CRITICAL
+          --format sarif --output trivy-image.sarif "$IMAGE"
+
+      - name: Upload results to the Security tab
+        if: always() && hashFiles('trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Enforce the acceptance rule (no fixable HIGH/CRITICAL)
+        run: >-
+          trivy image --scanners vuln --severity HIGH,CRITICAL
+          --ignore-unfixed --exit-code 1 "$IMAGE"
+
+      - name: Check the Dockerfile for HIGH/CRITICAL misconfigurations
+        run: trivy config --severity HIGH,CRITICAL --exit-code 1 docker/
