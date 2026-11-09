@@ -74,6 +74,18 @@ Network design:
 - `frontend`: the API, its published port (127.0.0.1 only) and internet access for threat intelligence lookups
 - `backend` (internal): API ↔ PostgreSQL only; no internet access, database port not published
 - Data persists in the `pgdata` volume across `docker compose down` / `up`
+## Vulnerability scanning
+
+The image is scanned with [Trivy](https://trivy.dev):
+
+```bash
+docker compose build --pull
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.1 \
+  image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ioc-enricher:dev
+```
+
+Acceptance rule: **no HIGH or CRITICAL vulnerabilities with an available fix.**
+Unfixed vulnerabilities are monitored. Accepted risks, if any, are listed in `.trivyignore` with a justification and an expiration date.
 ## Tests
 
 ```bash
