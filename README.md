@@ -87,7 +87,7 @@ The image is scanned with [Trivy](https://trivy.dev):
 
 ```bash
 docker compose build --pull
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.1 \
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.1 \
   image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ioc-enricher:dev
 ```
 
