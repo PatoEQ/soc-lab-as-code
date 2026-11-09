@@ -27,7 +27,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Unprivileged user with a fixed UID, no home and no login shell.
 # pip is removed so an attacker cannot install tools inside the container.
-RUN groupadd --system --gid 10001 app \
+# Apply Debian security updates published after the base image was built,
+# then remove the package index so it does not stay in the image.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app \
  && python -m pip uninstall -y pip
 
