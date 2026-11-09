@@ -99,6 +99,7 @@ jobs:
     permissions:
       contents: read
       security-events: write   # upload scan results to the Security tab
+      actions: read            # upload-sarif reads the current workflow run metadata
     env:
       TRIVY_VERSION: "0.76.1"
       # From the official trivy_0.76.1_checksums.txt release file
