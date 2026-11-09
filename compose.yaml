@@ -19,6 +19,17 @@ services:
     networks:
       - frontend   # published port and internet access (AbuseIPDB)
       - backend    # talks to the database
+    # --- Runtime hardening ---
+    read_only: true                      # root filesystem cannot be modified
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m   # small scratch space; nothing in it can run
+    cap_drop:
+      - ALL                              # no Linux capabilities at all
+    security_opt:
+      - no-new-privileges:true           # no privilege escalation (setuid binaries)
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100                      # stops fork bombs
 
   db:
     image: postgres:16-alpine
@@ -35,6 +46,24 @@ services:
       retries: 5
     networks:
       - backend    # no published ports: not reachable from the host
+    # --- Runtime hardening ---
+    read_only: true                      # only the data volume and tmpfs are writable
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+      - /var/run/postgresql:rw,noexec,nosuid,size=1m   # PostgreSQL socket and lock files
+    cap_drop:
+      - ALL
+    cap_add:                             # the minimum the official image needs to start
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
 
 networks:
   frontend: {}
