@@ -93,6 +93,20 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.
 
 Acceptance rule: **no HIGH or CRITICAL vulnerabilities with an available fix.**
 Unfixed vulnerabilities are monitored. Accepted risks, if any, are listed in `.trivyignore` with a justification and an expiration date.
+## Published image
+
+Each release publishes the image to GitHub Container Registry, after it passes the vulnerability acceptance rule:
+
+```bash
+docker pull ghcr.io/patoeq/ioc-enricher:<version>
+```
+
+Every image has a signed SLSA build provenance attestation and a signed CycloneDX SBOM (also attached to the GitHub release). Verify them before running the image:
+
+```bash
+gh attestation verify oci://ghcr.io/patoeq/ioc-enricher:<version> --owner PatoEQ
+gh attestation verify oci://ghcr.io/patoeq/ioc-enricher:<version> --owner PatoEQ --predicate-type https://cyclonedx.org/bom
+```
 ## Tests
 
 ```bash
