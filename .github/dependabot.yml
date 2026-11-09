@@ -1,0 +1,76 @@
+# Dependabot opens pull requests to keep dependencies up to date.
+# Every one of them must pass the same CI checks as any other change.
+version: 2
+
+updates:
+  # Python dependencies (runtime and development)
+  - package-ecosystem: pip
+    directories:
+      - "/"
+      - "/app"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Mexico_City
+    cooldown:
+      default-days: 14   # wait two weeks before adopting a new release
+    groups:
+      python-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Actions used by the CI workflow (pinned by commit SHA)
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Mexico_City
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(deps)"
+
+  # Base image in docker/Dockerfile
+  - package-ecosystem: docker
+    directories:
+      - "/docker"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Mexico_City
+    cooldown:
+      default-days: 14
+    ignore:
+      # Moving to a new Python version is a deliberate decision, not an automatic bump
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    commit-message:
+      prefix: "infra(deps)"
+
+  # PostgreSQL image in compose.yaml
+  - package-ecosystem: docker-compose
+    directories:
+      - "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Mexico_City
+    cooldown:
+      default-days: 14
+    ignore:
+      # A new PostgreSQL major version requires a data migration
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "infra(deps)"
