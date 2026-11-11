@@ -1,0 +1,127 @@
+name: Scheduled scan
+
+# New CVEs are published every day, even when the code does not change.
+on:
+  schedule:
+    - cron: "17 10 * * *"   # every day at 10:17 UTC (04:17 in Mexico City)
+  workflow_dispatch:         # also runnable by hand from the Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  rescan:
+    name: Rescan images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write   # refresh the alerts in the Security tab
+      actions: read            # upload-sarif reads the workflow run metadata
+      issues: write            # open an issue when action is needed
+    env:
+      TRIVY_VERSION: "0.76.1"
+      # From the official trivy_0.76.1_checksums.txt release file
+      TRIVY_SHA256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
+      MAIN_IMAGE: ioc-enricher:main
+      REGISTRY_IMAGE: ghcr.io/patoeq/ioc-enricher
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy (checksum verified)
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/trivy.tar.gz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$RUNNER_TEMP" trivy
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # 1. The image that main would ship today
+      - name: Build the image from main
+        run: docker build --pull -f docker/Dockerfile -t "$MAIN_IMAGE" .
+
+      - name: Scan the main image (report for the Security tab)
+        run: >-
+          trivy image --scanners vuln --severity HIGH,CRITICAL
+          --format sarif --output trivy-image.sarif "$MAIN_IMAGE"
+
+      - name: Refresh the Security tab
+        if: always() && hashFiles('trivy-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Check the main image
+        id: main_gate
+        continue-on-error: true
+        run: >-
+          trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed
+          --exit-code 1 --output main-findings.txt "$MAIN_IMAGE"
+
+      # 2. The image people are already running: the latest published release
+      - name: Find the latest published image
+        id: latest
+        run: |
+          tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          echo "Latest release: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check the published image
+        id: published_gate
+        continue-on-error: true
+        env:
+          TAG: ${{ steps.latest.outputs.tag }}
+        run: >-
+          trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed
+          --exit-code 1 --output published-findings.txt "$REGISTRY_IMAGE:$TAG"
+
+      # 3. Turn findings into a tracked issue, without duplicates
+      - name: Open an issue for new fixable vulnerabilities
+        if: steps.main_gate.outcome == 'failure' || steps.published_gate.outcome == 'failure'
+        env:
+          MAIN_RESULT: ${{ steps.main_gate.outcome }}
+          PUBLISHED_RESULT: ${{ steps.published_gate.outcome }}
+          TAG: ${{ steps.latest.outputs.tag }}
+        run: |
+          title="Scheduled scan: fixable HIGH/CRITICAL vulnerabilities"
+          open=$(gh issue list --state open --label security --search "\"$title\" in:title" --json number --jq 'length')
+          if [ "$open" -gt 0 ]; then
+            echo "An issue is already open; not creating a duplicate."
+            exit 0
+          fi
+          gh label create security --color B60205 --description "Security findings" --force
+          {
+            echo "The scheduled scan found HIGH/CRITICAL vulnerabilities that have a fix available."
+            echo
+            echo "| Target | Result |"
+            echo "| --- | --- |"
+            echo "| Image built from main | $MAIN_RESULT |"
+            echo "| Published image $TAG | $PUBLISHED_RESULT |"
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "Suggested response: rebuild with \`--pull\` / update dependencies on main, then publish a patch release."
+            for f in main-findings.txt published-findings.txt; do
+              if [ -s "$f" ]; then
+                echo
+                echo "<details><summary>$f</summary>"
+                echo
+                echo '```'
+                head -c 50000 "$f"
+                echo '```'
+                echo "</details>"
+              fi
+            done
+          } > issue.md
+          gh issue create --title "$title" --label security --body-file issue.md
+
+      - name: Fail the run when action is needed
+        if: steps.main_gate.outcome == 'failure' || steps.published_gate.outcome == 'failure'
+        run: |
+          echo "::error::Fixable HIGH/CRITICAL vulnerabilities found. See the issue opened by this run."
+          exit 1
